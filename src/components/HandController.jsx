@@ -1,18 +1,23 @@
 import React, { useEffect, useRef } from 'react';
 import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 import { useGestureStore } from '../store';
+import { Html } from '@react-three/drei';
 
 const HandController = () => {
     const videoRef = useRef(null);
     const { setRotation, setScale, setPosition } = useGestureStore();
+    const requestRef = useRef();
+    const streamRef = useRef();
 
     useEffect(() => {
+        let handLandmarker = null;
+
         const initHandLandmarker = async () => {
             const vision = await FilesetResolver.forVisionTasks(
                 "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
             );
 
-            const handLandmarker = await HandLandmarker.createFromOptions(vision, {
+            handLandmarker = await HandLandmarker.createFromOptions(vision, {
                 baseOptions: {
                     modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
                     delegate: "GPU"
@@ -22,18 +27,34 @@ const HandController = () => {
             });
 
             if (videoRef.current) {
-                navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    streamRef.current = stream;
                     if (videoRef.current) {
                         videoRef.current.srcObject = stream;
                         videoRef.current.addEventListener('loadeddata', () => {
                             predictWebcam(handLandmarker);
                         });
                     }
-                });
+                } catch (err) {
+                    console.error("Error accessing webcam:", err);
+                }
             }
         };
 
         initHandLandmarker();
+
+        return () => {
+            if (requestRef.current) {
+                cancelAnimationFrame(requestRef.current);
+            }
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach(track => track.stop());
+            }
+            if (handLandmarker) {
+                handLandmarker.close();
+            }
+        };
     }, []);
 
     const predictWebcam = (handLandmarker) => {
@@ -88,19 +109,21 @@ const HandController = () => {
                 setRotation(pitch * 2, yaw * 2);
             }
 
-            requestAnimationFrame(() => predictWebcam(handLandmarker));
+            requestRef.current = requestAnimationFrame(() => predictWebcam(handLandmarker));
         }
     };
 
     return (
-        <div style={{ display: 'none' }}>
-            <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                style={{ transform: 'scaleX(-1)' }}
-            />
-        </div>
+        <Html>
+            <div style={{ display: 'none' }}>
+                <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    style={{ transform: 'scaleX(-1)' }}
+                />
+            </div>
+        </Html>
     );
 };
 
