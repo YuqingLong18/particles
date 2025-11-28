@@ -18,9 +18,14 @@ function App() {
   ];
 
   const molecules = [
-    { id: 'H2O', label: 'Water (H2O)' },
-    { id: 'Methane', label: 'Methane (CH4)' },
-    { id: 'CO2', label: 'Carbon Dioxide (CO2)' },
+    { id: 'H2O', label: 'Water (H₂O)' },
+    { id: 'CO2', label: 'Carbon Dioxide (CO₂)' },
+    { id: 'Methane', label: 'Methane (CH₄)' },
+    { id: 'NH3', label: 'Ammonia (NH₃)' },
+    { id: 'O2', label: 'Oxygen (O₂)' },
+    { id: 'N2', label: 'Nitrogen (N₂)' },
+    { id: 'HCl', label: 'Hydrogen Chloride (HCl)' },
+    { id: 'Ethanol', label: 'Ethanol (C₂H₅OH)' },
   ];
 
   return (
