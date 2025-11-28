@@ -1,143 +1,107 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { useThree, useFrame } from '@react-three/fiber';
-import { FilesetResolver, GestureRecognizer } from '@mediapipe/tasks-vision';
-import * as THREE from 'three';
+import React, { useEffect, useRef } from 'react';
+import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
+import { useGestureStore } from '../store';
 
 const HandController = () => {
-    const { camera } = useThree();
     const videoRef = useRef(null);
-    const recognizerRef = useRef(null);
-    const [isLoaded, setIsLoaded] = useState(false);
-    const lastGestureRef = useRef(null);
-    const lastPositionRef = useRef(null);
-    const initialPinchDistanceRef = useRef(null);
-    const initialZoomRef = useRef(null);
+    const { setRotation, setScale, setPosition } = useGestureStore();
 
     useEffect(() => {
-        const initMediaPipe = async () => {
+        const initHandLandmarker = async () => {
             const vision = await FilesetResolver.forVisionTasks(
                 "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
             );
 
-            recognizerRef.current = await GestureRecognizer.createFromOptions(vision, {
+            const handLandmarker = await HandLandmarker.createFromOptions(vision, {
                 baseOptions: {
-                    modelAssetPath: "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task",
+                    modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
                     delegate: "GPU"
                 },
                 runningMode: "VIDEO",
                 numHands: 1
             });
 
-            setIsLoaded(true);
-        };
-
-        initMediaPipe();
-
-        // Setup Camera
-        const video = document.createElement('video');
-        video.style.display = 'none';
-        video.autoplay = true;
-        video.playsInline = true;
-        document.body.appendChild(video);
-        videoRef.current = video;
-
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
-                video.srcObject = stream;
-            });
-        }
-
-        return () => {
             if (videoRef.current) {
-                const stream = videoRef.current.srcObject;
-                if (stream) {
-                    const tracks = stream.getTracks();
-                    tracks.forEach(track => track.stop());
-                }
-                document.body.removeChild(videoRef.current);
+                navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
+                    if (videoRef.current) {
+                        videoRef.current.srcObject = stream;
+                        videoRef.current.addEventListener('loadeddata', () => {
+                            predictWebcam(handLandmarker);
+                        });
+                    }
+                });
             }
         };
+
+        initHandLandmarker();
     }, []);
 
-    useFrame(() => {
-        if (!isLoaded || !recognizerRef.current || !videoRef.current || videoRef.current.readyState < 2) return;
+    const predictWebcam = (handLandmarker) => {
+        if (videoRef.current && videoRef.current.currentTime !== videoRef.current.duration) {
+            const startTimeMs = performance.now();
+            const results = handLandmarker.detectForVideo(videoRef.current, startTimeMs);
 
-        const results = recognizerRef.current.recognizeForVideo(videoRef.current, Date.now());
+            if (results.landmarks && results.landmarks.length > 0) {
+                const landmarks = results.landmarks[0];
 
-        if (results.gestures.length > 0) {
-            const gesture = results.gestures[0][0].categoryName;
-            const landmarks = results.landmarks[0];
+                // 1. Position (Wrist)
+                // Map 0..1 to -10..10 (approx scene range)
+                // Invert X because webcam is mirrored usually, or just to match screen coords
+                const x = (0.5 - landmarks[0].x) * 20;
+                const y = (0.5 - landmarks[0].y) * 15;
+                setPosition(x, y, 0);
 
-            // Map landmarks to screen coordinates (approx)
-            // Index finger tip is index 8
-            const indexTip = landmarks[8];
-            const thumbTip = landmarks[4];
+                // 2. Scale (Pinch: Thumb tip vs Index tip)
+                const thumbTip = landmarks[4];
+                const indexTip = landmarks[8];
+                const distance = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y);
+                // Map distance 0.02..0.2 to scale 0.5..3
+                const scale = Math.max(0.5, Math.min(5, distance * 15));
+                setScale(scale);
 
-            const currentPos = new THREE.Vector2(indexTip.x, indexTip.y);
+                // 3. Rotation
+                const wrist = landmarks[0];
+                const middleMcp = landmarks[9];
+                const indexMcp = landmarks[5];
+                const pinkyMcp = landmarks[17];
 
-            // --- Interaction Logic ---
+                // Pitch (X-axis): Tilt forward/backward
+                // Vector from Wrist to Middle MCP
+                const handDirY = {
+                    y: middleMcp.y - wrist.y,
+                    z: middleMcp.z - wrist.z
+                };
+                // When hand is vertical (fingers up), y is negative, z is 0.
+                // We want this to be 0 rotation.
+                const pitch = -Math.atan2(handDirY.z, -handDirY.y);
 
-            // 1. Pinch to Zoom
-            // We can detect pinch by distance between thumb and index
-            const distance = Math.hypot(indexTip.x - thumbTip.x, indexTip.y - thumbTip.y);
-            const isPinching = distance < 0.05; // Threshold
+                // Yaw (Y-axis): Turn left/right
+                // Vector from Index MCP to Pinky MCP
+                const handDirX = {
+                    x: pinkyMcp.x - indexMcp.x,
+                    z: pinkyMcp.z - indexMcp.z
+                };
+                // When hand is flat facing camera, x is positive (Right hand), z is 0.
+                const yaw = Math.atan2(handDirX.z, handDirX.x);
 
-            if (isPinching) {
-                if (initialPinchDistanceRef.current === null) {
-                    initialPinchDistanceRef.current = distance;
-                    initialZoomRef.current = camera.position.z;
-                } else {
-                    // Calculate zoom delta
-                    const delta = (initialPinchDistanceRef.current - distance) * 200; // Sensitivity
-                    camera.position.z = THREE.MathUtils.clamp(initialZoomRef.current + delta, 5, 100);
-                }
-            } else {
-                initialPinchDistanceRef.current = null;
+                // Apply rotation (multiply for sensitivity)
+                setRotation(pitch * 2, yaw * 2);
             }
 
-            // 2. Closed Fist to Rotate
-            if (gesture === 'Closed_Fist') {
-                if (lastPositionRef.current) {
-                    const deltaX = currentPos.x - lastPositionRef.current.x;
-                    const deltaY = currentPos.y - lastPositionRef.current.y;
-
-                    // Rotate camera around the center (0,0,0)
-                    // Simplified: just move camera position for now, or rotate scene
-                    // Let's rotate the camera orbit
-                    const theta = deltaX * 5; // Sensitivity
-                    const phi = deltaY * 5;
-
-                    // Convert to spherical to rotate
-                    const spherical = new THREE.Spherical().setFromVector3(camera.position);
-                    spherical.theta -= theta;
-                    spherical.phi -= phi;
-                    spherical.makeSafe();
-
-                    camera.position.setFromSpherical(spherical);
-                    camera.lookAt(0, 0, 0);
-                }
-            }
-
-            // 3. Open Palm to Pan (Move camera target/offset)
-            if (gesture === 'Open_Palm') {
-                if (lastPositionRef.current) {
-                    const deltaX = currentPos.x - lastPositionRef.current.x;
-                    const deltaY = currentPos.y - lastPositionRef.current.y;
-
-                    camera.position.x += deltaX * 20;
-                    camera.position.y -= deltaY * 20;
-                }
-            }
-
-            lastPositionRef.current = currentPos;
-            lastGestureRef.current = gesture;
-        } else {
-            lastPositionRef.current = null;
-            initialPinchDistanceRef.current = null;
+            requestAnimationFrame(() => predictWebcam(handLandmarker));
         }
-    });
+    };
 
-    return null; // This component has no visual representation in the scene
+    return (
+        <div style={{ display: 'none' }}>
+            <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                style={{ transform: 'scaleX(-1)' }}
+            />
+        </div>
+    );
 };
 
 export default HandController;

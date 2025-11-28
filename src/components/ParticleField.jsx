@@ -3,11 +3,13 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { Generators } from '../utils/curves';
 import { generateMolecule } from '../utils/molecules';
+import { useGestureStore } from '../store';
 
 const NUM_PARTICLES = 30000;
 
 const ParticleField = ({ mode, shape, moleculeType }) => {
     const pointsRef = useRef();
+    const groupRef = useRef();
 
     // Buffers for positions
     const { positions, colors, targetPositions, targetColors } = useMemo(() => {
@@ -43,8 +45,6 @@ const ParticleField = ({ mode, shape, moleculeType }) => {
         if (mode === 'math') {
             const generator = Generators[shape] || Generators.koch;
             newPoints = generator(NUM_PARTICLES);
-            // Math curves are usually single color or gradient based on position
-            // Let's make them white/blueish by default, shader will handle some coloring
             for (let i = 0; i < NUM_PARTICLES; i++) {
                 newColors.push(new THREE.Color(0.2, 0.6, 1.0));
             }
@@ -71,57 +71,55 @@ const ParticleField = ({ mode, shape, moleculeType }) => {
                     targetColors[i * 3 + 2] = 1;
                 }
             } else {
-                // Hide unused particles
                 targetPositions[i * 3] = 0;
                 targetPositions[i * 3 + 1] = 0;
                 targetPositions[i * 3 + 2] = 0;
-                // Make them invisible or black
                 targetColors[i * 3] = 0;
                 targetColors[i * 3 + 1] = 0;
                 targetColors[i * 3 + 2] = 0;
             }
         }
-
-        // Reset animation time or trigger a transition flag if using custom shader uniforms for transition
-        // For now, we'll lerp in CPU/useFrame for simplicity unless performance is bad, 
-        // but 30k lerps in JS is borderline. Let's try JS lerp first, it's flexible.
-        // Actually, for 30k, JS lerp might be heavy. 
-        // Better approach: Update a "target" attribute and let vertex shader mix?
-        // No, React Three Fiber useFrame loop is fine for 30k simple lerps if we use TypedArrays directly.
-
     }, [mode, shape, moleculeType, targetPositions, targetColors]);
 
     useFrame((state, delta) => {
-        if (!pointsRef.current) return;
+        // 1. Particle Morphing Logic
+        if (pointsRef.current) {
+            const geometry = pointsRef.current.geometry;
+            const positionAttribute = geometry.attributes.position;
+            const colorAttribute = geometry.attributes.color;
 
-        const geometry = pointsRef.current.geometry;
-        const positionAttribute = geometry.attributes.position;
-        const colorAttribute = geometry.attributes.color;
+            const speed = 3.0 * delta;
 
-        const speed = 3.0 * delta; // Interpolation speed
+            for (let i = 0; i < NUM_PARTICLES; i++) {
+                const ix = i * 3;
+                const iy = i * 3 + 1;
+                const iz = i * 3 + 2;
 
-        for (let i = 0; i < NUM_PARTICLES; i++) {
-            const ix = i * 3;
-            const iy = i * 3 + 1;
-            const iz = i * 3 + 2;
+                positions[ix] += (targetPositions[ix] - positions[ix]) * speed;
+                positions[iy] += (targetPositions[iy] - positions[iy]) * speed;
+                positions[iz] += (targetPositions[iz] - positions[iz]) * speed;
 
-            // Lerp Position
-            positions[ix] += (targetPositions[ix] - positions[ix]) * speed;
-            positions[iy] += (targetPositions[iy] - positions[iy]) * speed;
-            positions[iz] += (targetPositions[iz] - positions[iz]) * speed;
+                colors[ix] += (targetColors[ix] - colors[ix]) * speed;
+                colors[iy] += (targetColors[iy] - colors[iy]) * speed;
+                colors[iz] += (targetColors[iz] - colors[iz]) * speed;
+            }
 
-            // Lerp Color
-            colors[ix] += (targetColors[ix] - colors[ix]) * speed;
-            colors[iy] += (targetColors[iy] - colors[iy]) * speed;
-            colors[iz] += (targetColors[iz] - colors[iz]) * speed;
+            positionAttribute.needsUpdate = true;
+            colorAttribute.needsUpdate = true;
         }
 
-        positionAttribute.needsUpdate = true;
-        colorAttribute.needsUpdate = true;
+        // 2. Gesture Control Logic (Applied to Group)
+        if (groupRef.current) {
+            const { rotation, scale, position } = useGestureStore.getState();
 
-        // Optional: Add some noise/movement to particles so they aren't static
-        const time = state.clock.getElapsedTime();
-        pointsRef.current.rotation.y = time * 0.05; // Slow rotation of the whole system
+            // Smooth interpolation for gestures
+            groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, rotation.x, 0.1);
+            groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, rotation.y, 0.1);
+
+            groupRef.current.scale.setScalar(THREE.MathUtils.lerp(groupRef.current.scale.x, scale, 0.1));
+
+            groupRef.current.position.lerp(new THREE.Vector3(position.x, position.y, position.z), 0.1);
+        }
     });
 
     // Custom Shader Material
@@ -142,7 +140,6 @@ const ParticleField = ({ mode, shape, moleculeType }) => {
           vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
           gl_Position = projectionMatrix * mvPosition;
           
-          // Size attenuation
           gl_PointSize = 4.0 * pixelRatio * (30.0 / -mvPosition.z);
         }
       `,
@@ -150,16 +147,14 @@ const ParticleField = ({ mode, shape, moleculeType }) => {
         varying vec3 vColor;
         
         void main() {
-          // Circular particle
           vec2 coord = gl_PointCoord - vec2(0.5);
           float dist = length(coord);
           if (dist > 0.5) discard;
           
-          // Glow effect
           float glow = 1.0 - (dist * 2.0);
           glow = pow(glow, 1.5);
           
-          gl_FragColor = vec4(vColor, glow); // Add transparency/glow
+          gl_FragColor = vec4(vColor, glow);
         }
       `,
             transparent: true,
@@ -169,23 +164,25 @@ const ParticleField = ({ mode, shape, moleculeType }) => {
     }, []);
 
     return (
-        <points ref={pointsRef}>
-            <bufferGeometry>
-                <bufferAttribute
-                    attach="attributes-position"
-                    count={NUM_PARTICLES}
-                    array={positions}
-                    itemSize={3}
-                />
-                <bufferAttribute
-                    attach="attributes-color"
-                    count={NUM_PARTICLES}
-                    array={colors}
-                    itemSize={3}
-                />
-            </bufferGeometry>
-            <primitive object={shaderMaterial} attach="material" />
-        </points>
+        <group ref={groupRef}>
+            <points ref={pointsRef}>
+                <bufferGeometry>
+                    <bufferAttribute
+                        attach="attributes-position"
+                        count={NUM_PARTICLES}
+                        array={positions}
+                        itemSize={3}
+                    />
+                    <bufferAttribute
+                        attach="attributes-color"
+                        count={NUM_PARTICLES}
+                        array={colors}
+                        itemSize={3}
+                    />
+                </bufferGeometry>
+                <primitive object={shaderMaterial} attach="material" />
+            </points>
+        </group>
     );
 };
 
