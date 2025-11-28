@@ -45,8 +45,19 @@ const ParticleField = ({ mode, shape, moleculeType }) => {
         if (mode === 'math') {
             const generator = Generators[shape] || Generators.koch;
             newPoints = generator(NUM_PARTICLES);
+
+            // Generate varied colors along the curve for a more particle-like effect
             for (let i = 0; i < NUM_PARTICLES; i++) {
-                newColors.push(new THREE.Color(0.2, 0.6, 1.0));
+                const t = i / NUM_PARTICLES; // Position along curve (0 to 1)
+
+                // Create color gradient with softer, less bright colors
+                const hue = (t * 0.3 + 0.5) % 1.0; // Cycle through blue-cyan-purple range
+                const saturation = 0.6 + Math.random() * 0.2; // Varied saturation
+                const lightness = 0.4 + Math.random() * 0.2; // Softer, less bright
+
+                const color = new THREE.Color();
+                color.setHSL(hue, saturation, lightness);
+                newColors.push(color);
             }
         } else if (mode === 'molecule') {
             const data = generateMolecule(moleculeType, NUM_PARTICLES);

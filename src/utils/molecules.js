@@ -12,7 +12,7 @@ const RADII = {
 // Standard CPK coloring scheme for atoms
 const COLORS = {
     H: new THREE.Color(0xffffff),  // White
-    C: new THREE.Color(0x404040),  // Dark grey
+    C: new THREE.Color(0x909090),  // Light grey (more visible)
     O: new THREE.Color(0xff3030),  // Red
     N: new THREE.Color(0x3050f8),  // Blue
     Cl: new THREE.Color(0x1ff01f), // Green
