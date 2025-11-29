@@ -55,6 +55,7 @@ canvas {
   margin-bottom: 10px;
   background: linear-gradient(to right, #4facfe 0%, #00f2fe 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -96,4 +97,36 @@ button.active {
   border-color: #4facfe;
   color: black;
   font-weight: bold;
+}
+
+.ui-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.ui-title {
+  margin-bottom: 0;
+  /* Override previous margin */
+}
+
+.ui-toggle {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 1.2rem;
+  padding: 0 5px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ui-toggle:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.ui-overlay.minimized {
+  width: auto;
+  min-width: 200px;
 }

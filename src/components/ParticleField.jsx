@@ -3,6 +3,9 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { Generators } from '../utils/curves';
 import { generateMolecule } from '../utils/molecules';
+import { generateGalaxy } from '../utils/galaxy';
+import { generateArtifact } from '../utils/artifacts';
+import { initAudio, getAudioData } from '../utils/audio';
 import { useGestureStore } from '../store';
 
 const NUM_PARTICLES = 30000;
@@ -63,6 +66,22 @@ const ParticleField = ({ mode, shape, moleculeType }) => {
             const data = generateMolecule(moleculeType, NUM_PARTICLES);
             newPoints = data.points;
             newColors = data.colors;
+        } else if (mode === 'galaxy') {
+            const data = generateGalaxy(NUM_PARTICLES);
+            newPoints = data.points;
+            newColors = data.colors;
+        } else if (mode === 'artifact') {
+            const data = generateArtifact(shape, NUM_PARTICLES);
+            newPoints = data.points;
+            newColors = data.colors;
+        } else if (mode === 'audio') {
+            // Initialize audio if needed
+            initAudio();
+
+            // Initial sphere shape for audio
+            const data = generateArtifact('vase', NUM_PARTICLES); // Reuse vase or sphere as base
+            newPoints = data.points;
+            newColors = data.colors;
         }
 
         // Fill buffers
@@ -101,18 +120,47 @@ const ParticleField = ({ mode, shape, moleculeType }) => {
 
             const speed = 3.0 * delta;
 
+            // Audio Reactive Logic
+            let audioData = null;
+            if (mode === 'audio') {
+                audioData = getAudioData();
+            }
+
             for (let i = 0; i < NUM_PARTICLES; i++) {
                 const ix = i * 3;
                 const iy = i * 3 + 1;
                 const iz = i * 3 + 2;
 
-                positions[ix] += (targetPositions[ix] - positions[ix]) * speed;
-                positions[iy] += (targetPositions[iy] - positions[iy]) * speed;
-                positions[iz] += (targetPositions[iz] - positions[iz]) * speed;
+                let tx = targetPositions[ix];
+                let ty = targetPositions[iy];
+                let tz = targetPositions[iz];
 
-                colors[ix] += (targetColors[ix] - colors[ix]) * speed;
-                colors[iy] += (targetColors[iy] - colors[iy]) * speed;
-                colors[iz] += (targetColors[iz] - colors[iz]) * speed;
+                // Modify target based on audio
+                if (mode === 'audio' && audioData) {
+                    // Map particle index to frequency bin
+                    const bin = i % audioData.length;
+                    const val = audioData[bin] / 255.0; // 0 to 1
+
+                    // Expand out from center
+                    const factor = 1 + val * 2.0;
+                    tx *= factor;
+                    ty *= factor;
+                    tz *= factor;
+
+                    // Color shift
+                    colors[ix] = val;
+                    colors[iy] = 0.5;
+                    colors[iz] = 1 - val;
+                } else {
+                    // Standard morphing
+                    colors[ix] += (targetColors[ix] - colors[ix]) * speed;
+                    colors[iy] += (targetColors[iy] - colors[iy]) * speed;
+                    colors[iz] += (targetColors[iz] - colors[iz]) * speed;
+                }
+
+                positions[ix] += (tx - positions[ix]) * speed;
+                positions[iy] += (ty - positions[iy]) * speed;
+                positions[iz] += (tz - positions[iz]) * speed;
             }
 
             positionAttribute.needsUpdate = true;
