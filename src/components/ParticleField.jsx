@@ -10,7 +10,7 @@ import { useGestureStore } from '../store';
 
 const NUM_PARTICLES = 30000;
 
-const ParticleField = ({ mode, shape, moleculeType }) => {
+const ParticleField = ({ mode, shape, moleculeType, customMolecule }) => {
     const pointsRef = useRef();
     const groupRef = useRef();
 
@@ -63,7 +63,7 @@ const ParticleField = ({ mode, shape, moleculeType }) => {
                 newColors.push(color);
             }
         } else if (mode === 'molecule') {
-            const data = generateMolecule(moleculeType, NUM_PARTICLES);
+            const data = generateMolecule(moleculeType, NUM_PARTICLES, customMolecule);
             newPoints = data.points;
             newColors = data.colors;
         } else if (mode === 'galaxy') {
@@ -109,7 +109,7 @@ const ParticleField = ({ mode, shape, moleculeType }) => {
                 targetColors[i * 3 + 2] = 0;
             }
         }
-    }, [mode, shape, moleculeType, targetPositions, targetColors]);
+    }, [mode, shape, moleculeType, customMolecule, targetPositions, targetColors]);
 
     useFrame((state, delta) => {
         // 1. Particle Morphing Logic

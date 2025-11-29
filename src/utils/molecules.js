@@ -100,8 +100,13 @@ const MOLECULES = {
     }
 };
 
-export const generateMolecule = (type, numPoints) => {
-    const molecule = MOLECULES[type];
+export const generateMolecule = (type, numPoints, customData = null) => {
+    let molecule = MOLECULES[type];
+
+    if (type === 'custom' && customData) {
+        molecule = customData;
+    }
+
     if (!molecule) return { points: [], colors: [] };
 
     const points = [];

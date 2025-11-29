@@ -5,7 +5,7 @@ import ParticleField from './ParticleField';
 import HandController from './HandController';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 
-const Scene = ({ mode, shape, moleculeType, useHandControl }) => {
+const Scene = ({ mode, shape, moleculeType, customMolecule, useHandControl }) => {
     return (
         <Canvas camera={{ position: [0, 0, 30], fov: 60 }}>
             <color attach="background" args={['#000000']} />
@@ -15,7 +15,7 @@ const Scene = ({ mode, shape, moleculeType, useHandControl }) => {
             <ambientLight intensity={0.5} />
 
             <Suspense fallback={null}>
-                <ParticleField mode={mode} shape={shape} moleculeType={moleculeType} />
+                <ParticleField mode={mode} shape={shape} moleculeType={moleculeType} customMolecule={customMolecule} />
             </Suspense>
 
             {/* Post Processing for Glow */}

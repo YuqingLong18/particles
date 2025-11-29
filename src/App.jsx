@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Scene from './components/Scene';
+import { fetchMoleculeData } from './utils/aiMolecule';
 
 function App() {
   const [mode, setMode] = useState('math'); // 'math' or 'molecule'
@@ -7,6 +8,34 @@ function App() {
   const [moleculeType, setMoleculeType] = useState('H2O');
   const [useHandControl, setUseHandControl] = useState(false);
   const [showPanel, setShowPanel] = useState(true);
+
+  // AI Molecule State
+  const [customMolecule, setCustomMolecule] = useState(null);
+  const [moleculeQuery, setMoleculeQuery] = useState('');
+  const [apiKey, setApiKey] = useState(localStorage.getItem('openrouter_key') || '');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleGenerateMolecule = async () => {
+    if (!moleculeQuery || !apiKey) {
+      setError("Please enter both a molecule name and API Key.");
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    localStorage.setItem('openrouter_key', apiKey); // Save key for convenience
+
+    try {
+      const data = await fetchMoleculeData(moleculeQuery, apiKey);
+      setCustomMolecule(data);
+      setMoleculeType('custom'); // Switch to custom type
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const mathShapes = [
     { id: 'koch', label: 'Koch Fractal' },
@@ -128,6 +157,32 @@ function App() {
                     </button>
                   ))}
                 </div>
+
+                <div style={{ marginTop: '15px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '10px' }}>
+                  <span className="ui-label">AI Generator</span>
+                  <input
+                    type="text"
+                    placeholder="Molecule Name (e.g. Caffeine)"
+                    value={moleculeQuery}
+                    onChange={(e) => setMoleculeQuery(e.target.value)}
+                    className="ui-input"
+                  />
+                  <input
+                    type="password"
+                    placeholder="OpenRouter API Key"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    className="ui-input"
+                  />
+                  <button
+                    onClick={handleGenerateMolecule}
+                    disabled={isLoading}
+                    style={{ width: '100%', marginTop: '5px', background: isLoading ? '#555' : 'rgba(255, 255, 255, 0.1)' }}
+                  >
+                    {isLoading ? 'Generating...' : 'Generate 3D Model'}
+                  </button>
+                  {error && <div style={{ color: '#ff6b6b', fontSize: '0.8rem', marginTop: '5px' }}>{error}</div>}
+                </div>
               </div>
             )}
 
@@ -157,6 +212,7 @@ function App() {
         mode={mode}
         shape={shape}
         moleculeType={moleculeType}
+        customMolecule={customMolecule}
         useHandControl={useHandControl}
       />
     </>
