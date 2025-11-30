@@ -13,14 +13,18 @@ export const fetchMoleculeData = async (query, apiKey, model = "google/gemini-pr
         { "element": "Symbol", "pos": [x, y, z] }
       ],
       "bonds": [
-        [index1, index2]
+        [index1, index2, order, type]
       ]
     }
     
     Rules:
     1. "pos" must be an array of 3 numbers (x, y, z) in Angstroms.
     2. "element" must be the standard chemical symbol (e.g., "C", "H", "O").
-    3. "bonds" must be an array of arrays, where each inner array contains two indices (0-based) of the atoms connected.
+    3. "bonds" must be an array of arrays. Each inner array contains:
+       - index1: Index of the first atom (0-based).
+       - index2: Index of the second atom (0-based).
+       - order: Bond order (1 for single, 2 for double, 3 for triple).
+       - type: Bond type ("covalent" or "ionic").
     4. Center the molecule at [0, 0, 0].
     5. Provide accurate 3D geometry (bond lengths and angles).
     6. Return ONLY the JSON object, no markdown formatting or extra text.
