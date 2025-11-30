@@ -1,10 +1,11 @@
-export const fetchMoleculeData = async (query, apiKey) => {
+export const fetchMoleculeData = async (query, apiKey, model = "google/gemini-pro-1.5") => {
     if (!query || !apiKey) {
         throw new Error("Molecule name and API Key are required.");
     }
 
     const prompt = `
-    Generate a JSON object for the molecule '${query}'.
+    Generate a JSON object for the molecule '${query}'. The object focuses on its 3D position.
+    The center of each atom should reflect the spatial relationship of the true structure of the molecule.
     The JSON must follow this exact schema:
     {
       "name": "Molecule Name",
@@ -35,7 +36,7 @@ export const fetchMoleculeData = async (query, apiKey) => {
                 "X-Title": "Particles App"
             },
             body: JSON.stringify({
-                "model": "google/gemini-pro-1.5",
+                "model": model,
                 "messages": [
                     { "role": "user", "content": prompt }
                 ]

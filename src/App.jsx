@@ -12,22 +12,28 @@ function App() {
   // AI Molecule State
   const [customMolecule, setCustomMolecule] = useState(null);
   const [moleculeQuery, setMoleculeQuery] = useState('');
-  const [apiKey, setApiKey] = useState(localStorage.getItem('openrouter_key') || '');
+  const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
+  const model = import.meta.env.VITE_OPENROUTER_MODEL || 'google/gemini-pro-1.5';
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const handleGenerateMolecule = async () => {
-    if (!moleculeQuery || !apiKey) {
-      setError("Please enter both a molecule name and API Key.");
+    if (!moleculeQuery) {
+      setError("Please enter a molecule name.");
+      return;
+    }
+
+    if (!apiKey) {
+      setError("API Key not found in environment variables.");
       return;
     }
 
     setIsLoading(true);
     setError(null);
-    localStorage.setItem('openrouter_key', apiKey); // Save key for convenience
+    // localStorage.setItem('openrouter_key', apiKey); // No longer needed
 
     try {
-      const data = await fetchMoleculeData(moleculeQuery, apiKey);
+      const data = await fetchMoleculeData(moleculeQuery, apiKey, model);
       setCustomMolecule(data);
       setMoleculeType('custom'); // Switch to custom type
     } catch (err) {
@@ -167,13 +173,7 @@ function App() {
                     onChange={(e) => setMoleculeQuery(e.target.value)}
                     className="ui-input"
                   />
-                  <input
-                    type="password"
-                    placeholder="OpenRouter API Key"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    className="ui-input"
-                  />
+                  {/* API Key input removed, using env var */}
                   <button
                     onClick={handleGenerateMolecule}
                     disabled={isLoading}
