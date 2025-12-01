@@ -97,6 +97,31 @@ const MOLECULES = {
             { element: 'H', pos: [1.2, -0.45, -0.78] }   // H on second C
         ],
         bonds: [[0, 1], [1, 2], [2, 3], [0, 4], [0, 5], [0, 6], [1, 7], [1, 8]]
+    },
+    Benzene: {
+        name: 'Benzene',
+        atoms: [
+            // Carbon ring (hexagon with 1.4 Å bond length, scaled)
+            { element: 'C', pos: [1.21, 0.7, 0] },      // C1 (top right)
+            { element: 'C', pos: [1.21, -0.7, 0] },     // C2 (bottom right)
+            { element: 'C', pos: [0, -1.4, 0] },        // C3 (bottom)
+            { element: 'C', pos: [-1.21, -0.7, 0] },    // C4 (bottom left)
+            { element: 'C', pos: [-1.21, 0.7, 0] },     // C5 (top left)
+            { element: 'C', pos: [0, 1.4, 0] },         // C6 (top)
+            // Hydrogen atoms (one per carbon, pointing outward)
+            { element: 'H', pos: [2.15, 1.24, 0] },     // H1
+            { element: 'H', pos: [2.15, -1.24, 0] },    // H2
+            { element: 'H', pos: [0, -2.48, 0] },       // H3
+            { element: 'H', pos: [-2.15, -1.24, 0] },   // H4
+            { element: 'H', pos: [-2.15, 1.24, 0] },    // H5
+            { element: 'H', pos: [0, 2.48, 0] }         // H6
+        ],
+        bonds: [
+            // Carbon ring bonds
+            [0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 0],
+            // C-H bonds
+            [0, 6], [1, 7], [2, 8], [3, 9], [4, 10], [5, 11]
+        ]
     }
 };
 

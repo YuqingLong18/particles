@@ -6,6 +6,7 @@ import { generateMolecule } from '../utils/molecules';
 import { generateGalaxy } from '../utils/galaxy';
 import { generateArtifact } from '../utils/artifacts';
 import { initAudio, getAudioData } from '../utils/audio';
+import { generateText3D } from '../utils/text3d';
 import { useGestureStore } from '../store';
 
 const NUM_PARTICLES = 30000;
@@ -45,7 +46,11 @@ const ParticleField = ({ mode, shape, moleculeType, customMolecule }) => {
         let newPoints = [];
         let newColors = [];
 
-        if (mode === 'math') {
+        if (mode === 'welcome') {
+            const data = generateText3D(NUM_PARTICLES);
+            newPoints = data.points;
+            newColors = data.colors;
+        } else if (mode === 'math') {
             const generator = Generators[shape] || Generators.koch;
             newPoints = generator(NUM_PARTICLES);
 
