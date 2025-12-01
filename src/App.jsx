@@ -108,10 +108,10 @@ function App() {
                   Chemistry
                 </button>
                 <button
-                  className={mode === 'galaxy' ? 'active' : ''}
-                  onClick={() => setMode('galaxy')}
+                  className={mode === 'solarSystem' ? 'active' : ''}
+                  onClick={() => setMode('solarSystem')}
                 >
-                  Galaxy
+                  Solar System
                 </button>
                 <button
                   className={mode === 'artifact' ? 'active' : ''}

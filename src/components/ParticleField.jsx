@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { Generators } from '../utils/curves';
 import { generateMolecule } from '../utils/molecules';
 import { generateGalaxy } from '../utils/galaxy';
+import { generateSolarSystem, updateSolarSystem } from '../utils/solarSystem';
 import { generateArtifact } from '../utils/artifacts';
 import { initAudio, getAudioData } from '../utils/audio';
 import { generateText3D } from '../utils/text3d';
@@ -14,6 +15,7 @@ const NUM_PARTICLES = 30000;
 const ParticleField = ({ mode, shape, moleculeType, customMolecule }) => {
     const pointsRef = useRef();
     const groupRef = useRef();
+    const timeRef = useRef(0); // Track time for solar system orbits
 
     // Buffers for positions
     const { positions, colors, targetPositions, targetColors } = useMemo(() => {
@@ -71,8 +73,8 @@ const ParticleField = ({ mode, shape, moleculeType, customMolecule }) => {
             const data = generateMolecule(moleculeType, NUM_PARTICLES, customMolecule);
             newPoints = data.points;
             newColors = data.colors;
-        } else if (mode === 'galaxy') {
-            const data = generateGalaxy(NUM_PARTICLES);
+        } else if (mode === 'solarSystem') {
+            const data = generateSolarSystem(NUM_PARTICLES, timeRef.current);
             newPoints = data.points;
             newColors = data.colors;
         } else if (mode === 'artifact') {
@@ -117,6 +119,27 @@ const ParticleField = ({ mode, shape, moleculeType, customMolecule }) => {
     }, [mode, shape, moleculeType, customMolecule, targetPositions, targetColors]);
 
     useFrame((state, delta) => {
+        // Update time for solar system orbits
+        if (mode === 'solarSystem') {
+            timeRef.current += delta;
+
+            // Update solar system positions based on new time
+            const { points: newPoints, colors: newColors } = updateSolarSystem(timeRef.current);
+
+            // Update target positions and colors
+            for (let i = 0; i < NUM_PARTICLES; i++) {
+                if (i < newPoints.length) {
+                    targetPositions[i * 3] = newPoints[i].x;
+                    targetPositions[i * 3 + 1] = newPoints[i].y;
+                    targetPositions[i * 3 + 2] = newPoints[i].z;
+
+                    targetColors[i * 3] = newColors[i].r;
+                    targetColors[i * 3 + 1] = newColors[i].g;
+                    targetColors[i * 3 + 2] = newColors[i].b;
+                }
+            }
+        }
+
         // 1. Particle Morphing Logic
         if (pointsRef.current) {
             const geometry = pointsRef.current.geometry;
