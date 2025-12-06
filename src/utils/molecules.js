@@ -7,7 +7,6 @@ const RADII = {
     O: 0.75,
     N: 0.75,
     Cl: 0.9,
-    Na: 1.0, // Sodium
 };
 
 // Standard CPK coloring scheme for atoms
@@ -17,13 +16,9 @@ const COLORS = {
     O: new THREE.Color(0xff3030),  // Red
     N: new THREE.Color(0x3050f8),  // Blue
     Cl: new THREE.Color(0x1ff01f), // Green
-    Na: new THREE.Color(0xab5cf2), // Purple (Sodium)
 };
 
 // Molecule definitions with accurate geometries
-// Bonds format: [index1, index2, order, type]
-// order: 1, 2, 3
-// type: 'covalent' (default), 'ionic'
 const MOLECULES = {
     H2O: {
         name: 'Water',
@@ -32,7 +27,7 @@ const MOLECULES = {
             { element: 'H', pos: [0.76, 0.59, 0] },      // ~104.5° angle
             { element: 'H', pos: [-0.76, 0.59, 0] }
         ],
-        bonds: [[0, 1, 1], [0, 2, 1]]
+        bonds: [[0, 1], [0, 2]]
     },
     CO2: {
         name: 'Carbon Dioxide',
@@ -41,7 +36,7 @@ const MOLECULES = {
             { element: 'O', pos: [1.16, 0, 0] },         // Linear, 180°
             { element: 'O', pos: [-1.16, 0, 0] }
         ],
-        bonds: [[0, 1, 2], [0, 2, 2]] // Double bonds
+        bonds: [[0, 1], [0, 2]]
     },
     Methane: {
         name: 'Methane',
@@ -52,7 +47,7 @@ const MOLECULES = {
             { element: 'H', pos: [-0.63, 0.63, -0.63] },
             { element: 'H', pos: [0.63, -0.63, -0.63] }
         ],
-        bonds: [[0, 1, 1], [0, 2, 1], [0, 3, 1], [0, 4, 1]]
+        bonds: [[0, 1], [0, 2], [0, 3], [0, 4]]
     },
     NH3: {
         name: 'Ammonia',
@@ -62,7 +57,7 @@ const MOLECULES = {
             { element: 'H', pos: [-0.47, 0.38, 0.81] },
             { element: 'H', pos: [-0.47, 0.38, -0.81] }
         ],
-        bonds: [[0, 1, 1], [0, 2, 1], [0, 3, 1]]
+        bonds: [[0, 1], [0, 2], [0, 3]]
     },
     O2: {
         name: 'Oxygen',
@@ -70,7 +65,7 @@ const MOLECULES = {
             { element: 'O', pos: [-0.6, 0, 0] },
             { element: 'O', pos: [0.6, 0, 0] }
         ],
-        bonds: [[0, 1, 2]] // Double bond
+        bonds: [[0, 1]]
     },
     N2: {
         name: 'Nitrogen',
@@ -78,7 +73,7 @@ const MOLECULES = {
             { element: 'N', pos: [-0.55, 0, 0] },
             { element: 'N', pos: [0.55, 0, 0] }
         ],
-        bonds: [[0, 1, 3]] // Triple bond
+        bonds: [[0, 1]]
     },
     HCl: {
         name: 'Hydrogen Chloride',
@@ -86,7 +81,7 @@ const MOLECULES = {
             { element: 'H', pos: [-0.64, 0, 0] },
             { element: 'Cl', pos: [0.64, 0, 0] }
         ],
-        bonds: [[0, 1, 1, 'ionic']] // Ionic bond
+        bonds: [[0, 1]]
     },
     Ethanol: {
         name: 'Ethanol',
@@ -101,7 +96,32 @@ const MOLECULES = {
             { element: 'H', pos: [1.2, -0.45, 0.78] },   // H on second C
             { element: 'H', pos: [1.2, -0.45, -0.78] }   // H on second C
         ],
-        bonds: [[0, 1, 1], [1, 2, 1], [2, 3, 1], [0, 4, 1], [0, 5, 1], [0, 6, 1], [1, 7, 1], [1, 8, 1]]
+        bonds: [[0, 1], [1, 2], [2, 3], [0, 4], [0, 5], [0, 6], [1, 7], [1, 8]]
+    },
+    Benzene: {
+        name: 'Benzene',
+        atoms: [
+            // Carbon ring (hexagon with 1.4 Å bond length, scaled)
+            { element: 'C', pos: [1.21, 0.7, 0] },      // C1 (top right)
+            { element: 'C', pos: [1.21, -0.7, 0] },     // C2 (bottom right)
+            { element: 'C', pos: [0, -1.4, 0] },        // C3 (bottom)
+            { element: 'C', pos: [-1.21, -0.7, 0] },    // C4 (bottom left)
+            { element: 'C', pos: [-1.21, 0.7, 0] },     // C5 (top left)
+            { element: 'C', pos: [0, 1.4, 0] },         // C6 (top)
+            // Hydrogen atoms (one per carbon, pointing outward)
+            { element: 'H', pos: [2.15, 1.24, 0] },     // H1
+            { element: 'H', pos: [2.15, -1.24, 0] },    // H2
+            { element: 'H', pos: [0, -2.48, 0] },       // H3
+            { element: 'H', pos: [-2.15, -1.24, 0] },   // H4
+            { element: 'H', pos: [-2.15, 1.24, 0] },    // H5
+            { element: 'H', pos: [0, 2.48, 0] }         // H6
+        ],
+        bonds: [
+            // Carbon ring bonds
+            [0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 0],
+            // C-H bonds
+            [0, 6], [1, 7], [2, 8], [3, 9], [4, 10], [5, 11]
+        ]
     }
 };
 
@@ -121,15 +141,8 @@ export const generateMolecule = (type, numPoints, customData = null) => {
     const totalAtoms = molecule.atoms.length;
     const totalBonds = molecule.bonds.length;
 
-    const totalAtomPoints = Math.floor(numPoints * 0.7);
+    const pointsPerAtom = Math.floor((numPoints * 0.7) / totalAtoms);
     const pointsPerBond = totalBonds > 0 ? Math.floor((numPoints * 0.3) / totalBonds) : 0;
-
-    // Calculate total volume for density normalization
-    let totalVolume = 0;
-    molecule.atoms.forEach(atom => {
-        const r = RADII[atom.element] || 0.7;
-        totalVolume += r * r * r; // Proportional to volume
-    });
 
     // Generate Atoms - dense spheres with element-specific colors
     molecule.atoms.forEach(atom => {
@@ -137,11 +150,7 @@ export const generateMolecule = (type, numPoints, customData = null) => {
         const radius = RADII[atom.element] || 0.7;
         const color = COLORS[atom.element] || new THREE.Color(0xff00ff);
 
-        // Allocate points based on volume fraction to maintain constant density
-        const volume = radius * radius * radius;
-        const pointsForThisAtom = Math.floor(totalAtomPoints * (volume / totalVolume));
-
-        for (let i = 0; i < pointsForThisAtom; i++) {
+        for (let i = 0; i < pointsPerAtom; i++) {
             // Random point in sphere using spherical coordinates
             const u = Math.random();
             const v = Math.random();
@@ -158,95 +167,41 @@ export const generateMolecule = (type, numPoints, customData = null) => {
         }
     });
 
-    // Generate Bonds
+    // Generate Bonds - cylinders connecting atoms
     molecule.bonds.forEach(bond => {
         const atom1 = molecule.atoms[bond[0]];
         const atom2 = molecule.atoms[bond[1]];
-        const order = bond[2] || 1;
-        const bondType = bond[3] || 'covalent';
-
         const start = new THREE.Vector3(...atom1.pos);
         const end = new THREE.Vector3(...atom2.pos);
         const direction = end.clone().sub(start);
         const length = direction.length();
         const axis = direction.clone().normalize();
 
-        // Calculate perpendicular vector for multi-bond offsets
-        let perp = new THREE.Vector3(0, 1, 0).cross(axis);
-        if (perp.lengthSq() < 0.001) {
-            perp = new THREE.Vector3(0, 0, 1).cross(axis);
-        }
-        perp.normalize();
-
-        const bondSeparation = 0.15; // Distance between multiple bonds
-        const bondRadius = 0.05; // Much thinner bonds
-
-        // Determine bond offsets based on order
-        const offsets = [];
-        if (order === 1) {
-            offsets.push(new THREE.Vector3(0, 0, 0));
-        } else if (order === 2) {
-            offsets.push(perp.clone().multiplyScalar(bondSeparation / 2));
-            offsets.push(perp.clone().multiplyScalar(-bondSeparation / 2));
-        } else if (order === 3) {
-            offsets.push(new THREE.Vector3(0, 0, 0));
-            offsets.push(perp.clone().multiplyScalar(bondSeparation));
-            offsets.push(perp.clone().multiplyScalar(-bondSeparation));
-        }
+        // Create rotation to align cylinder with bond
+        const up = new THREE.Vector3(0, 1, 0);
+        const quaternion = new THREE.Quaternion().setFromUnitVectors(up, axis);
 
         // Use a gradient color for bonds (blend of the two atom colors)
         const color1 = COLORS[atom1.element] || new THREE.Color(0xcccccc);
         const color2 = COLORS[atom2.element] || new THREE.Color(0xcccccc);
 
-        const pointsPerSubBond = Math.floor(pointsPerBond / order);
+        for (let i = 0; i < pointsPerBond; i++) {
+            const theta = Math.random() * Math.PI * 2;
+            const r = 0.12; // Bond thickness
+            const h = Math.random() * length;
 
-        offsets.forEach(offset => {
-            // Create rotation to align cylinder with bond
-            const up = new THREE.Vector3(0, 1, 0);
-            const quaternion = new THREE.Quaternion().setFromUnitVectors(up, axis);
+            // Create point in cylinder
+            const p = new THREE.Vector3(r * Math.cos(theta), h, r * Math.sin(theta));
+            p.applyQuaternion(quaternion);
+            p.add(start);
 
-            for (let i = 0; i < pointsPerSubBond; i++) {
-                let r, theta, h;
+            // Blend colors based on position along bond
+            const t = h / length;
+            const bondColor = color1.clone().lerp(color2, t);
 
-                if (bondType === 'ionic') {
-                    // Ionic Cloud: Diffuse, wider, volumetric distribution
-                    // Use a much larger radius for the cloud
-                    const maxRadius = 0.4;
-                    // Random point WITHIN the cylinder (volume), not just on surface
-                    // Power of 0.5 for uniform distribution in circle, or just random for center-bias (more 'cloud-like')
-                    const rRand = Math.random();
-                    r = maxRadius * Math.sqrt(rRand); // Sqrt for uniform, or just rRand for center-dense
-
-                    theta = Math.random() * Math.PI * 2;
-                    h = Math.random() * length;
-                } else {
-                    // Covalent: Thin, solid cylinder (surface only for sharpness)
-                    theta = Math.random() * Math.PI * 2;
-                    r = bondRadius;
-                    h = Math.random() * length;
-                }
-
-                // Create point in cylinder
-                const p = new THREE.Vector3(r * Math.cos(theta), h, r * Math.sin(theta));
-                p.applyQuaternion(quaternion);
-                p.add(start).add(offset); // Add start pos and multi-bond offset
-
-                // Blend colors based on position along bond
-                const t = h / length;
-                let bondColor = color1.clone().lerp(color2, t);
-
-                // Ionic bond color tweak: Use a distinct, bright color
-                if (bondType === 'ionic') {
-                    // Electric Cyan/Blue for distinct "energy" look
-                    bondColor = new THREE.Color(0x00ffff);
-                    // Add slight variation for shimmering effect
-                    bondColor.offsetHSL(0, 0, (Math.random() - 0.5) * 0.2);
-                }
-
-                points.push(p);
-                colors.push(bondColor);
-            }
-        });
+            points.push(p);
+            colors.push(bondColor);
+        }
     });
 
     // Scale up for better visibility
@@ -255,4 +210,3 @@ export const generateMolecule = (type, numPoints, customData = null) => {
 
     return { points, colors };
 };
-

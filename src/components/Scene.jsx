@@ -7,7 +7,7 @@ import { EffectComposer, Bloom } from '@react-three/postprocessing';
 
 const Scene = ({ mode, shape, moleculeType, customMolecule, useHandControl }) => {
     return (
-        <Canvas camera={{ position: [0, 0, 30], fov: 60 }}>
+        <Canvas camera={{ position: [0, 0, 50], fov: 60 }}>
             <color attach="background" args={['#000000']} />
 
             {/* Ambient environment */}

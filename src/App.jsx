@@ -3,7 +3,7 @@ import Scene from './components/Scene';
 import { fetchMoleculeData } from './utils/aiMolecule';
 
 function App() {
-  const [mode, setMode] = useState('math'); // 'math' or 'molecule'
+  const [mode, setMode] = useState('welcome'); // Default to welcome page
   const [shape, setShape] = useState('koch');
   const [moleculeType, setMoleculeType] = useState('H2O');
   const [useHandControl, setUseHandControl] = useState(false);
@@ -78,6 +78,7 @@ function App() {
     { id: 'N2', label: 'Nitrogen (N₂)' },
     { id: 'HCl', label: 'Hydrogen Chloride (HCl)' },
     { id: 'Ethanol', label: 'Ethanol (C₂H₅OH)' },
+    { id: 'Benzene', label: 'Benzene (C₆H₆)' },
   ];
 
   return (
@@ -100,6 +101,12 @@ function App() {
               <span className="ui-label">Mode</span>
               <div className="ui-buttons">
                 <button
+                  className={mode === 'welcome' ? 'active' : ''}
+                  onClick={() => setMode('welcome')}
+                >
+                  Welcome
+                </button>
+                <button
                   className={mode === 'math' ? 'active' : ''}
                   onClick={() => setMode('math')}
                 >
@@ -112,10 +119,10 @@ function App() {
                   Chemistry
                 </button>
                 <button
-                  className={mode === 'galaxy' ? 'active' : ''}
-                  onClick={() => setMode('galaxy')}
+                  className={mode === 'solarSystem' ? 'active' : ''}
+                  onClick={() => setMode('solarSystem')}
                 >
-                  Galaxy
+                  Solar System
                 </button>
                 <button
                   className={mode === 'artifact' ? 'active' : ''}
