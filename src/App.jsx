@@ -28,9 +28,20 @@ function App() {
       return;
     }
 
+    // Client-side validation
+    if (moleculeQuery.length > 100) {
+      setError("Molecule name is too long (max 100 characters).");
+      return;
+    }
+
+    // Check for dangerous characters
+    if (!/^[a-zA-Z0-9\s\-'.()]+$/.test(moleculeQuery)) {
+      setError("Molecule name contains invalid characters. Please use only letters, numbers, spaces, and basic punctuation.");
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
-    // localStorage.setItem('openrouter_key', apiKey); // No longer needed
 
     try {
       const data = await fetchMoleculeData(moleculeQuery, apiKey, model);
@@ -168,7 +179,7 @@ function App() {
                   <span className="ui-label">AI Generator</span>
                   <input
                     type="text"
-                    placeholder="Molecule Name (e.g. Caffeine)"
+                    placeholder="Enter molecule name (e.g., Caffeine, Glucose)"
                     value={moleculeQuery}
                     onChange={(e) => setMoleculeQuery(e.target.value)}
                     className="ui-input"
